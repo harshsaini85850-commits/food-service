@@ -49,7 +49,7 @@ export default function Hero() {
               href="/our-services"
               className="rounded-full bg-gold px-7 py-3 text-sm font-semibold text-ink transition hover:brightness-110"
             >
-              Plan Your Event
+              Plan Your Event now
             </Link>
 
             <a
