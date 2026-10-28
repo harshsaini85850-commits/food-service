@@ -1,60 +1,135 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import PhotoBox from "@/components/PhotoBox";
 import PostContent from "@/components/PostContent";
-
-function slugify(text) {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
+import { slugify } from "@/lib/slugify";
 
 const inputClass =
   "w-full rounded-lg border border-brand/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20";
 
+const smallBtn =
+  "rounded-md border border-brand/30 px-3 py-1 text-xs font-semibold text-brand hover:bg-brand hover:text-cream disabled:opacity-50";
+
 export default function PostForm({ initial = {}, mode = "new" }) {
+  const router = useRouter();
+
   const [title, setTitle] = useState(initial.title || "");
   const [slug, setSlug] = useState(initial.slug || "");
   const [slugEdited, setSlugEdited] = useState(Boolean(initial.slug));
   const [category, setCategory] = useState(initial.category || "");
   const [excerpt, setExcerpt] = useState(initial.excerpt || "");
   const [content, setContent] = useState(initial.content || "");
-  const [status, setStatus] = useState("published");
+  const [status, setStatus] = useState(initial.status || "published");
   const [cover, setCover] = useState(initial.cover || "");
+
   const [preview, setPreview] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const bodyFileRef = useRef(null);
+  const coverFileRef = useRef(null);
 
   function onTitleChange(value) {
     setTitle(value);
     if (!slugEdited) setSlug(slugify(value));
   }
 
-  function onCoverChange(e) {
-    const file = e.target.files?.[0];
-    if (file) setCover(URL.createObjectURL(file));
-  }
-
   function insert(text) {
     setContent((c) => (c ? `${c}\n\n${text}` : text));
   }
 
-  function handleSubmit(e) {
+  async function uploadFile(file) {
+    if (file.size > 4 * 1024 * 1024) {
+      throw new Error("Image is too large. Please use one under 4 MB.");
+    }
+    const fd = new FormData();
+    fd.append("file", file);
+
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || "Upload failed.");
+    return json.url;
+  }
+
+  async function onCoverFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    setError("");
+    try {
+      setCover(await uploadFile(file));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function onBodyFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    setError("");
+    try {
+      const url = await uploadFile(file);
+      const alt = file.name
+        .replace(/\.[^.]+$/, "")
+        .replace(/[-_]+/g, " ")
+        .replace(/[\[\]()]/g, "");
+      insert(`![${alt}](${url})`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault();
-    // DEMO ONLY: real saving comes with the backend.
-    setNotice(
-      "Demo only: nothing was saved. Saving works once the backend is connected."
-    );
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setSaving(true);
+    setError("");
+
+    try {
+      const res = await fetch(
+        mode === "edit" ? `/api/posts/${initial.id}` : "/api/posts",
+        {
+          method: mode === "edit" ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            slug,
+            excerpt,
+            category,
+            content,
+            cover,
+            status,
+          }),
+        }
+      );
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Could not save the post.");
+
+      router.push("/admin/blog");
+      router.refresh();
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {notice && (
-        <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {notice}
+      {error && (
+        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
         </p>
       )}
 
@@ -69,6 +144,7 @@ export default function PostForm({ initial = {}, mode = "new" }) {
               value={title}
               onChange={(e) => onTitleChange(e.target.value)}
               required
+              maxLength={160}
               placeholder="e.g. How to Plan a Wedding Menu"
               className={inputClass}
             />
@@ -90,6 +166,11 @@ export default function PostForm({ initial = {}, mode = "new" }) {
                 className={inputClass}
               />
             </div>
+            {mode === "edit" && (
+              <p className="mt-1 text-xs text-ink/50">
+                Changing this breaks links already shared for this post.
+              </p>
+            )}
           </div>
 
           <div>
@@ -101,6 +182,7 @@ export default function PostForm({ initial = {}, mode = "new" }) {
               onChange={(e) => setExcerpt(e.target.value)}
               rows={2}
               required
+              maxLength={400}
               placeholder="One or two lines shown on the blog list"
               className={inputClass}
             />
@@ -115,18 +197,26 @@ export default function PostForm({ initial = {}, mode = "new" }) {
                 <button
                   type="button"
                   onClick={() => insert("## Heading text")}
-                  className="rounded-md border border-brand/30 px-3 py-1 text-xs font-semibold text-brand hover:bg-brand hover:text-cream"
+                  className={smallBtn}
                 >
                   + Heading
+                </button>
+                <button
+                  type="button"
+                  onClick={() => bodyFileRef.current?.click()}
+                  disabled={uploading}
+                  className={smallBtn}
+                >
+                  {uploading ? "Uploading..." : "+ Upload image"}
                 </button>
                 <button
                   type="button"
                   onClick={() =>
                     insert("![Image description](https://image-link-here)")
                   }
-                  className="rounded-md border border-brand/30 px-3 py-1 text-xs font-semibold text-brand hover:bg-brand hover:text-cream"
+                  className={smallBtn}
                 >
-                  + Image
+                  + Image link
                 </button>
                 <button
                   type="button"
@@ -136,6 +226,13 @@ export default function PostForm({ initial = {}, mode = "new" }) {
                   {preview ? "Edit" : "Preview"}
                 </button>
               </div>
+              <input
+                ref={bodyFileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                onChange={onBodyFile}
+                className="hidden"
+              />
             </div>
 
             {preview ? (
@@ -160,8 +257,8 @@ export default function PostForm({ initial = {}, mode = "new" }) {
             )}
             <p className="mt-2 text-xs text-ink/50">
               Tip: blank line = new paragraph. <code>## Title</code> = heading.
-              The <b>+ Image</b> button adds an image line. After the backend is
-              built, uploading a picture will fill in its link automatically.
+              Each image sits on its own line, like{" "}
+              <code>![description](link)</code>.
             </p>
           </div>
         </div>
@@ -177,14 +274,21 @@ export default function PostForm({ initial = {}, mode = "new" }) {
               onChange={(e) => setStatus(e.target.value)}
               className={inputClass}
             >
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
+              <option value="published">Published (visible on the site)</option>
+              <option value="draft">Draft (hidden)</option>
             </select>
             <button
               type="submit"
-              className="w-full rounded-full bg-brand py-3 text-sm font-semibold text-cream transition hover:bg-brand-dark"
+              disabled={saving || uploading}
+              className="w-full rounded-full bg-brand py-3 text-sm font-semibold text-cream transition hover:bg-brand-dark disabled:opacity-60"
             >
-              {mode === "edit" ? "Save Changes" : "Publish Post"}
+              {saving
+                ? "Saving..."
+                : mode === "edit"
+                ? "Save Changes"
+                : status === "draft"
+                ? "Save Draft"
+                : "Publish Post"}
             </button>
           </div>
 
@@ -196,6 +300,7 @@ export default function PostForm({ initial = {}, mode = "new" }) {
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               required
+              maxLength={60}
               placeholder="e.g. Wedding Tips"
               className={inputClass}
             />
@@ -216,11 +321,39 @@ export default function PostForm({ initial = {}, mode = "new" }) {
                 No image chosen
               </div>
             )}
+
             <input
+              value={cover}
+              onChange={(e) => setCover(e.target.value)}
+              placeholder="Paste an image link (https://...)"
+              className={inputClass}
+            />
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => coverFileRef.current?.click()}
+                disabled={uploading}
+                className={smallBtn}
+              >
+                {uploading ? "Uploading..." : "Upload image"}
+              </button>
+              {cover && (
+                <button
+                  type="button"
+                  onClick={() => setCover("")}
+                  className={smallBtn}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <input
+              ref={coverFileRef}
               type="file"
-              accept="image/*"
-              onChange={onCoverChange}
-              className="block w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-gold file:px-4 file:py-2 file:text-xs file:font-semibold file:text-ink"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              onChange={onCoverFile}
+              className="hidden"
             />
           </div>
         </aside>

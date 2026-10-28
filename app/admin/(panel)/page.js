@@ -1,30 +1,19 @@
 import Link from "next/link";
 import StatusBadge from "@/components/admin/StatusBadge";
-import { sampleQuotes } from "@/lib/adminSample";
-import { posts } from "@/lib/posts";
+import { getQuotes, getQuoteCounts } from "@/lib/quotes";
+import { getPostCount } from "@/lib/posts";
 
-export default function AdminDashboard() {
-  const newCount = sampleQuotes.filter((q) => q.status === "new").length;
+export default async function AdminDashboard() {
+  const [{ total, newCount }, recent, postCount] = await Promise.all([
+    getQuoteCounts(),
+    getQuotes({ limit: 5 }),
+    getPostCount(),
+  ]);
 
-  const stats = [
-    {
-      label: "New Requests",
-      value: newCount,
-      icon: "🔔",
-      href: "/admin/quotes",
-    },
-    {
-      label: "Total Requests",
-      value: sampleQuotes.length,
-      icon: "📩",
-      href: "/admin/quotes",
-    },
-    {
-      label: "Blog Posts",
-      value: posts.length,
-      icon: "📝",
-      href: "/admin/blog",
-    },
+   const stats = [
+    { label: "New Requests", value: newCount, icon: "🔔", href: "/admin/quotes?status=new" },
+    { label: "Total Requests", value: total, icon: "📩", href: "/admin/quotes" },
+    { label: "Blog Posts", value: postCount, icon: "📝", href: "/admin/blog" },
   ];
 
   return (
@@ -77,32 +66,38 @@ export default function AdminDashboard() {
           </Link>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-left text-sm">
-            <thead className="text-xs uppercase text-ink/50">
-              <tr>
-                <th className="py-2">Name</th>
-                <th>Event</th>
-                <th>Date</th>
-                <th>Guests</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sampleQuotes.slice(0, 3).map((q) => (
-                <tr key={q.id} className="border-t border-ink/10">
-                  <td className="py-3 font-medium">{q.name}</td>
-                  <td>{q.eventType}</td>
-                  <td>{q.eventDate}</td>
-                  <td>{q.guests}</td>
-                  <td>
-                    <StatusBadge status={q.status} />
-                  </td>
+        {recent.length === 0 ? (
+          <p className="py-6 text-center text-sm text-ink/60">
+            No requests yet. They will appear here as soon as someone submits the form.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="text-xs uppercase text-ink/50">
+                <tr>
+                  <th className="py-2">Name</th>
+                  <th>Event</th>
+                  <th>Date</th>
+                  <th>Guests</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {recent.map((q) => (
+                  <tr key={q.id} className="border-t border-ink/10">
+                    <td className="py-3 font-medium">{q.name}</td>
+                    <td>{q.eventType}</td>
+                    <td>{q.eventDate}</td>
+                    <td>{q.guests}</td>
+                    <td>
+                      <StatusBadge status={q.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </>
   );

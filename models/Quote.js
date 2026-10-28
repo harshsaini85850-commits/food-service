@@ -14,8 +14,9 @@ const QuoteSchema = new mongoose.Schema(
       enum: ["new", "contacted", "closed"],
       default: "new",
     },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.models.Quote || mongoose.model("Quote", QuoteSchema);

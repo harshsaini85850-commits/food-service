@@ -8,9 +8,9 @@ import { getAllPosts, getPostBySlug, formatDate } from "@/lib/posts";
 
 export async function generateStaticParams() {
   const posts = await getAllPosts();
+  if (posts.length === 0) return [{ slug: "no-posts-yet" }];
   return posts.map((p) => ({ slug: p.slug }));
 }
-
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const post = await getPostBySlug(slug);

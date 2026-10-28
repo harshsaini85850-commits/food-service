@@ -10,3 +10,5 @@ export default function robots() {
     sitemap: `${site.url}/sitemap.xml`,
   };
 }
+
+      disallow: ["/admin", "/api", "/account"],

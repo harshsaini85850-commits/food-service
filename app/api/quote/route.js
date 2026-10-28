@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Quote from "@/models/Quote";
 import { sendQuoteEmail } from "@/lib/mailer";
+import { getUserSession } from "@/lib/auth";
 
 export async function POST(request) {
   try {
@@ -41,10 +42,14 @@ export async function POST(request) {
       );
     }
 
+        // If a customer is logged in, link the request to their account
+    const userSession = await getUserSession();
+
     await connectDB();
 
     // 1) Save first, so no lead is ever lost
     const quote = await Quote.create({
+            user: userSession?.sub || undefined,
       name,
       phone,
       email,

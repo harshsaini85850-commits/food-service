@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { site } from "@/lib/site";
+import AuthButton from "@/components/AuthButton";
 
 const links = [
   { href: "/", label: "Home" },
@@ -35,6 +36,7 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop menu */}
+
         <nav className="hidden items-center gap-7 lg:flex">
           {links.map((l) =>
             l.external ? (
@@ -51,8 +53,9 @@ export default function Navbar() {
               <Link key={l.label} href={l.href} className={linkClass(l.href)}>
                 {l.label}
               </Link>
-            )
+            ),
           )}
+          <AuthButton className="text-sm font-medium text-brand transition hover:text-gold" />
           <a
             href={site.phoneLink}
             className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-cream transition hover:bg-brand-dark"
@@ -76,15 +79,20 @@ export default function Navbar() {
         <nav className="border-t border-brand/10 bg-cream px-4 pb-4 lg:hidden">
           {links.map((l) =>
             l.external ? (
-              <a
-                key={l.label}
-                href={l.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={linkClass(l.href)}
-              >
-                {l.label}
-              </a>
+              (<AuthButton
+                onClick={() => setOpen(false)}
+                className="block py-2 text-sm font-medium text-brand"
+              />)(
+                <a
+                  key={l.label}
+                  href={l.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={linkClass(l.href)}
+                >
+                  {l.label}
+                </a>,
+              )
             ) : (
               <Link
                 key={l.label}
@@ -94,7 +102,7 @@ export default function Navbar() {
               >
                 {l.label}
               </Link>
-            )
+            ),
           )}
           <a
             href={site.phoneLink}
