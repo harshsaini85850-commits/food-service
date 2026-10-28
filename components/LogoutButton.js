@@ -8,7 +8,7 @@ export default function LogoutButton() {
   const [busy, setBusy] = useState(false);
 
   async function logout() {
-    setBusy(true);
+    setBusy(false);
     await fetch("/api/user/logout", { method: "POST" });
     window.dispatchEvent(new Event("auth-changed"));
     router.push("/");

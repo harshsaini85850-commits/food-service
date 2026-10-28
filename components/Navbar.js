@@ -1,3 +1,4 @@
+
 "use client";
 
 import Logo from "@/components/Logo";
@@ -28,7 +29,12 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 bg-cream/95 shadow-sm backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        <Link href="/" className="flex items-center gap-3">
+        {/* Logo and tagline */}
+        <Link
+          href="/"
+          className="flex items-center gap-3"
+          onClick={() => setOpen(false)}
+        >
           <Logo className="h-12 w-auto" />
           <span className="hidden font-heading text-sm font-semibold text-brand sm:block">
             {site.tagline}
@@ -36,7 +42,6 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop menu */}
-
         <nav className="hidden items-center gap-7 lg:flex">
           {links.map((l) =>
             l.external ? (
@@ -50,12 +55,18 @@ export default function Navbar() {
                 {l.label}
               </a>
             ) : (
-              <Link key={l.label} href={l.href} className={linkClass(l.href)}>
+              <Link
+                key={l.label}
+                href={l.href}
+                className={linkClass(l.href)}
+              >
                 {l.label}
               </Link>
             ),
           )}
+
           <AuthButton className="text-sm font-medium text-brand transition hover:text-gold" />
+
           <a
             href={site.phoneLink}
             className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-cream transition hover:bg-brand-dark"
@@ -64,11 +75,13 @@ export default function Navbar() {
           </a>
         </nav>
 
-        {/* Mobile button */}
+        {/* Mobile menu toggle button */}
         <button
+          type="button"
           onClick={() => setOpen(!open)}
           className="rounded-md border border-brand/30 px-3 py-2 text-brand lg:hidden"
-          aria-label="Toggle menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
         >
           {open ? "✕" : "☰"}
         </button>
@@ -79,20 +92,16 @@ export default function Navbar() {
         <nav className="border-t border-brand/10 bg-cream px-4 pb-4 lg:hidden">
           {links.map((l) =>
             l.external ? (
-              (<AuthButton
+              <a
+                key={l.label}
+                href={l.href}
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => setOpen(false)}
-                className="block py-2 text-sm font-medium text-brand"
-              />)(
-                <a
-                  key={l.label}
-                  href={l.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={linkClass(l.href)}
-                >
-                  {l.label}
-                </a>,
-              )
+                className={linkClass(l.href)}
+              >
+                {l.label}
+              </a>
             ) : (
               <Link
                 key={l.label}
@@ -104,9 +113,20 @@ export default function Navbar() {
               </Link>
             ),
           )}
+
+          {/* Authentication button */}
+          <div className="py-2">
+            <AuthButton
+              onClick={() => setOpen(false)}
+              className="block py-2 text-sm font-medium text-brand"
+            />
+          </div>
+
+          {/* Phone button */}
           <a
             href={site.phoneLink}
-            className="mt-2 block rounded-full bg-brand px-5 py-2 text-center text-sm font-semibold text-cream"
+            onClick={() => setOpen(false)}
+            className="mt-2 block rounded-full bg-brand px-5 py-2 text-center text-sm font-semibold text-cream transition hover:bg-brand-dark"
           >
             📞 {site.phone}
           </a>
